@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hearth.care — Admin (Mohammad's part, frontend only)
 
-## Getting Started
+This covers your slice of the project: **Services & Admin**.
 
-First, run the development server:
+- Admin Dashboard (stats + appointments needing a decision)
+- Manage Services (list, add, edit, delete — via modal)
+- Manage Appointments (tabs for pending/accepted/rejected/all, accept/reject)
+
+## Stack
+
+- Next.js 14 (App Router) + TypeScript
+- Tailwind CSS
+- No database yet — this is frontend-only per your request. All data lives in
+  `lib/mock-data.ts` and is held in React state (`useState`), so refreshing the
+  page resets it. Swapping in real data later means wiring these to your API
+  routes and dropping the mock imports.
+
+## Visual language
+
+Matched to the existing app (Hala's public pages / your teammates' screens):
+cream background, dark forest-green primary, serif display headings (Lora)
+over an Inter body, pill-shaped buttons, soft white cards. Tokens live in
+`tailwind.config.ts` (`cream`, `hearth`, `ink`, `pending`, `danger`) — reuse
+these classes rather than one-off hex values so the whole app stays visually
+consistent as more pages get built.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit `http://localhost:3000` — it redirects straight to `/admin/dashboard`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## File map (matches the plan doc)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+  admin/
+    layout.tsx              # shared admin nav shell
+    dashboard/page.tsx
+    services/page.tsx
+    appointments/page.tsx
+components/
+  admin/
+    AdminNav.tsx
+    DashboardCard.tsx
+    ServiceCard.tsx
+    ServiceModal.tsx         # add + edit, same modal
+    StatusBadge.tsx
+    AppointmentRow.tsx
+lib/
+  types.ts                   # Service, Appointment, DashboardStats
+  mock-data.ts                # stand-in for serviceController/adminController
+```
 
-## Learn More
+## Next steps (when the backend lands)
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `models/Service.ts`, `controllers/serviceController.ts`,
+  `routes/serviceRoutes.ts` per the plan doc.
+- Replace `initialServices` / `initialAppointments` with fetches to
+  `Get Services`, `Add/Update/Delete Service`, `Accept/Reject Appointment`,
+  `Dashboard Stats`.
+- Consider React Query or SWR for the fetch/mutate/cache layer once real
+  endpoints exist — the current `useState` calls are placeholders for that.
