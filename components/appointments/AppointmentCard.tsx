@@ -4,11 +4,13 @@ import StatusBadge from "./StatusBadge";
 interface AppointmentCardProps {
   appointment: Appointment;
   onCancel: (id: string) => void;
+  cancelling?: boolean;
 }
 
 export default function AppointmentCard({
   appointment,
   onCancel,
+  cancelling = false,
 }: AppointmentCardProps) {
   const canCancel = appointment.status === "pending";
 
@@ -23,13 +25,13 @@ export default function AppointmentCard({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-[190px]">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#687069]">
-            {appointment.id}
+            Service
           </p>
 
           <h2 className="mt-2 font-serif text-xl text-[#18231c]">
             {appointment.serviceName}
           </h2>
-        </div>
+            </div>
 
         <div className="min-w-[150px]">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#687069]">
@@ -37,7 +39,7 @@ export default function AppointmentCard({
           </p>
 
           <p className="mt-2 text-sm text-[#141b16]">
-            {appointment.caregiver || "To be assigned"}
+            {appointment.caregiver ?? "Will be assigned after confirmation"}
           </p>
         </div>
 
@@ -71,7 +73,9 @@ export default function AppointmentCard({
           <div className="flex gap-2">
             <button
               type="button"
-              className="rounded-full border border-[#ded9ce] px-4 py-2 text-xs font-medium text-[#28302b] transition hover:bg-[#f8f5ed]"
+              disabled
+              title="Rescheduling is not available yet"
+              className="cursor-not-allowed rounded-full border border-[#ded9ce] px-4 py-2 text-xs font-medium text-[#777] opacity-50"
             >
               Reschedule
             </button>
@@ -79,10 +83,11 @@ export default function AppointmentCard({
             {canCancel && (
               <button
                 type="button"
+                disabled={cancelling}
                 onClick={() => onCancel(appointment.id)}
-                className="rounded-full border border-[#f1b3b0] px-4 py-2 text-xs font-medium text-[#df4c47] transition hover:bg-[#fff5f4]"
+                className="rounded-full border border-[#f1b3b0] px-4 py-2 text-xs font-medium text-[#df4c47] transition hover:bg-[#fff5f4] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Cancel
+                {cancelling ? "Cancelling..." : "Cancel"}
               </button>
             )}
           </div>
