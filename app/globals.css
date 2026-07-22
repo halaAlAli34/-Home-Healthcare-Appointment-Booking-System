@@ -23,3 +23,34 @@ body {
 .font-serif {
   font-family: Georgia, "Times New Roman", serif;
 }
+
+@layer components {
+  /* Pill-shaped buttons, matching the Hearth.care reference */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill px-5 py-2.5 text-sm font-medium transition-colors;
+  }
+  .btn-primary {
+    @apply bg-hearth text-white hover:bg-hearth-hover;
+  }
+  .btn-ghost {
+    @apply border border-border bg-white text-ink hover:bg-cream-footer;
+  }
+  .btn-danger {
+    @apply border border-danger text-danger hover:bg-danger-light;
+  }
+  .btn-sm {
+    @apply px-4 py-1.5 text-xs;
+  }
+  .input-field {
+    @apply w-full rounded-xl border border-border bg-cream/60 px-3.5 py-3 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-hearth/40 focus:border-hearth;
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wide text-ink-muted;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-hearth;
+  }
+  .card {
+    @apply rounded-2xl border border-border bg-white flex flex-col overflow-hidden;
+  }
+}
