@@ -1,9 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
-import { initialServices } from "@/lib/mock-data";
-import styles from "./page.module.css";
+import { FormEvent, useState } from "react";
 
 const timeSlots = [
   "09:00 AM",
@@ -18,149 +16,77 @@ const timeSlots = [
   "03:00 PM",
 ];
 
-const unavailableSlots = ["10:30 AM", "01:00 PM"];
+const services = [
+  "In-home Nursing",
+  "Post-surgery Recovery",
+  "Doctor Visit",
+  "Elderly Companionship",
+  "Preventive Check-up",
+];
 
-function createServiceImage(serviceName: string, category: string) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="450">
-      <defs>
-        <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#dce8dc" />
-          <stop offset="100%" stop-color="#abc5b3" />
-        </linearGradient>
-      </defs>
-
-      <rect width="800" height="450" fill="url(#background)" />
-
-      <circle
-        cx="650"
-        cy="90"
-        r="130"
-        fill="#ffffff"
-        fill-opacity="0.18"
-      />
-
-      <circle
-        cx="100"
-        cy="390"
-        r="180"
-        fill="#ffffff"
-        fill-opacity="0.12"
-      />
-
-      <rect
-        x="55"
-        y="80"
-        width="72"
-        height="72"
-        rx="36"
-        fill="#1f4d3a"
-      />
-
-      <text
-        x="91"
-        y="129"
-        text-anchor="middle"
-        font-family="Arial"
-        font-size="36"
-        font-weight="700"
-        fill="#ffffff"
-      >
-        H
-      </text>
-
-      <text
-        x="55"
-        y="235"
-        font-family="Georgia"
-        font-size="42"
-        fill="#1f4d3a"
-      >
-        ${serviceName}
-      </text>
-
-      <text
-        x="57"
-        y="285"
-        font-family="Arial"
-        font-size="22"
-        fill="#4d695c"
-      >
-        ${category} · Home healthcare
-      </text>
-    </svg>
-  `;
-
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-}
+const nurses = [
+  "Nurse Sarah",
+  "Nurse Ahmad",
+  "Nurse Maya",
+];
 
 export default function BookAppointmentPage() {
-  const [selectedServiceId, setSelectedServiceId] = useState(
-    initialServices[0]?.id ?? ""
-  );
-
-  const [selectedTime, setSelectedTime] = useState(
-    timeSlots[2] ?? timeSlots[0]
-  );
-
+  const [client, setClient] = useState("");
+  const [service, setService] = useState("");
+  const [nurse, setNurse] = useState("");
   const [date, setDate] = useState("");
-  const [phone, setPhone] = useState("");
-  const [patientName, setPatientName] = useState("");
+  const [time, setTime] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
 
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<
-    "success" | "error" | ""
-  >("");
-
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const selectedService = useMemo(() => {
-    return initialServices.find(
-      (service) => service.id === selectedServiceId
-    );
-  }, [selectedServiceId]);
+  function getTodayDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
 
-  const minimumDate = new Date().toISOString().split("T")[0];
-
-  function resetForm() {
-    setDate("");
-    setPhone("");
-    setPatientName("");
-    setAddress("");
-    setNotes("");
-    setSelectedTime(timeSlots[2] ?? timeSlots[0]);
+    return `${year}-${month}-${day}`;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setMessage("");
-    setMessageType("");
+    setError("");
+    setSuccess("");
 
-    if (!selectedService) {
-      setMessage("Please choose a healthcare service.");
-      setMessageType("error");
+    if (!client.trim()) {
+      setError("Please enter the patient name.");
       return;
     }
 
-    if (!selectedTime) {
-      setMessage("Please choose an available appointment time.");
-      setMessageType("error");
+    if (!service) {
+      setError("Please select a service.");
       return;
     }
 
-    const payload = {
-      serviceId: selectedService.id,
-      serviceName: selectedService.name,
-      date,
-      time: selectedTime,
-      phone: phone.trim(),
-      patientName: patientName.trim(),
-      address: address.trim(),
-      notes: notes.trim(),
-    };
+    if (!nurse) {
+      setError("Please select a nurse.");
+      return;
+    }
+
+    if (!date) {
+      setError("Please select an appointment date.");
+      return;
+    }
+
+    if (!time) {
+      setError("Please select an appointment time.");
+      return;
+    }
+
+    if (!address.trim()) {
+      setError("Please enter the visit address.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -170,392 +96,447 @@ export default function BookAppointmentPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          client: client.trim(),
+          service,
+          nurse,
+          date,
+          time,
+          address: address.trim(),
+          notes: notes.trim(),
+          status: "pending",
+        }),
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
 
-      if (!response.ok) {
+      let data: {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      };
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        console.error("Appointment API response:", responseText);
+
         throw new Error(
-          result.message ||
-            result.error ||
-            "Something went wrong while creating the appointment."
+          `The appointments API returned an invalid response. Status: ${response.status}`
         );
       }
 
-      setMessage(
-        `Booking confirmed for ${payload.date} at ${payload.time}.`
-      );
-      setMessageType("success");
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            "Failed to create the appointment."
+        );
+      }
 
-      resetForm();
+      setSuccess("Your appointment was booked successfully.");
+
+      setClient("");
+      setService("");
+      setNurse("");
+      setDate("");
+      setTime("");
+      setAddress("");
+      setNotes("");
     } catch (error) {
-      setMessage(
+      console.error("Create appointment error:", error);
+
+      setError(
         error instanceof Error
           ? error.message
-          : "Network error — please try again."
+          : "Failed to create the appointment."
       );
-      setMessageType("error");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className={styles.site}>
-      <header className={styles.topbar}>
-        <Link href="/" className={styles.brand}>
-          <span className={styles.brandMark}>H</span>
-          <span className={styles.brandName}>Hearth.care</span>
-        </Link>
+    <div className="min-h-screen bg-[#f8f5ed] text-[#17231c]">
+      <Header />
 
-        <nav className={styles.nav}>
-          <Link href="/">Home</Link>
-          <Link href="/admin/services">Services</Link>
-          <Link href="/my-appointments">My visits</Link>
-          <Link href="/login">Log in</Link>
-        </nav>
-
-        <Link
-          href="/book-appointment"
-          className={`${styles.btn} ${styles.btnPrimary} ${styles.navCta}`}
-        >
-          Book a visit
-        </Link>
-      </header>
-
-      <main className={styles.page}>
-        <p className={styles.eyebrow}>BOOK A VISIT</p>
-
-        <h1 className={styles.headline}>
-          Tell us what you need, and when.
-        </h1>
-
-        <div className={styles.layout}>
-          <form
-            className={`${styles.card} ${styles.formCard}`}
-            onSubmit={handleSubmit}
+      <main className="mx-auto max-w-[1180px] px-6 py-14 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <Link
+            href="/my-appointments"
+            className="inline-flex items-center text-sm font-medium text-[#176043] transition hover:underline"
           >
-            <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel}>
-                CHOOSE A SERVICE
-              </label>
+            ← Back to my visits
+          </Link>
 
-              <div className={styles.serviceGrid}>
-                {initialServices.map((service) => {
-                  const selected =
-                    selectedServiceId === service.id;
-
-                  return (
-                    <button
-                      key={service.id}
-                      type="button"
-                      className={`${styles.serviceOption} ${
-                        selected ? styles.selectedService : ""
-                      }`}
-                      onClick={() =>
-                        setSelectedServiceId(service.id)
-                      }
-                    >
-                      <span className={styles.serviceName}>
-                        {service.name}
-                      </span>
-
-                      <span className={styles.serviceMeta}>
-                        {service.durationMinutes} min · $
-                        {service.price}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className={styles.row}>
-              <div
-                className={`${styles.fieldGroup} ${styles.half}`}
-              >
-                <label
-                  className={styles.fieldLabel}
-                  htmlFor="date"
-                >
-                  DATE
-                </label>
-
-                <input
-                  type="date"
-                  id="date"
-                  name="date"
-                  min={minimumDate}
-                  value={date}
-                  onChange={(event) =>
-                    setDate(event.target.value)
-                  }
-                  required
-                />
-              </div>
-
-              <div
-                className={`${styles.fieldGroup} ${styles.half}`}
-              >
-                <label className={styles.fieldLabel}>
-                  TIME
-                </label>
-
-                <div className={styles.timeGrid}>
-                  {timeSlots.map((slot) => {
-                    const unavailable =
-                      unavailableSlots.includes(slot);
-
-                    const selected = selectedTime === slot;
-
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        disabled={unavailable}
-                        onClick={() => setSelectedTime(slot)}
-                        className={`${styles.timeSlot} ${
-                          selected ? styles.selectedTime : ""
-                        } ${
-                          unavailable
-                            ? styles.unavailableTime
-                            : ""
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.row}>
-              <div
-                className={`${styles.fieldGroup} ${styles.half}`}
-              >
-                <label
-                  className={styles.fieldLabel}
-                  htmlFor="phone"
-                >
-                  PHONE
-                </label>
-
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={phone}
-                  onChange={(event) =>
-                    setPhone(event.target.value)
-                  }
-                  placeholder="+961 00 000 000"
-                  required
-                />
-              </div>
-
-              <div
-                className={`${styles.fieldGroup} ${styles.half}`}
-              >
-                <label
-                  className={styles.fieldLabel}
-                  htmlFor="patientName"
-                >
-                  PATIENT NAME
-                </label>
-
-                <input
-                  type="text"
-                  id="patientName"
-                  name="patientName"
-                  value={patientName}
-                  onChange={(event) =>
-                    setPatientName(event.target.value)
-                  }
-                  placeholder="Who is the visit for?"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className={styles.fieldGroup}>
-              <label
-                className={styles.fieldLabel}
-                htmlFor="address"
-              >
-                ADDRESS
-              </label>
-
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={address}
-                onChange={(event) =>
-                  setAddress(event.target.value)
-                }
-                placeholder="Street, apt, city"
-                required
-              />
-            </div>
-
-            <div className={styles.fieldGroup}>
-              <label
-                className={styles.fieldLabel}
-                htmlFor="notes"
-              >
-                NOTES FOR THE CAREGIVER
-              </label>
-
-              <textarea
-                id="notes"
-                name="notes"
-                rows={4}
-                value={notes}
-                onChange={(event) =>
-                  setNotes(event.target.value)
-                }
-                placeholder="Anything they should know — access instructions, mobility, allergies…"
-              />
-            </div>
-
-            <div className={styles.actions}>
-              <button
-                type="submit"
-                disabled={submitting}
-                className={`${styles.btn} ${styles.btnPrimary}`}
-              >
-                {submitting
-                  ? "Confirming..."
-                  : "Confirm booking"}
-              </button>
-
-              <Link
-                href="/admin/services"
-                className={`${styles.btn} ${styles.btnSecondary}`}
-              >
-                Back to services
-              </Link>
-            </div>
-
-            {message && (
-              <p
-                className={`${styles.formMessage} ${
-                  messageType === "success"
-                    ? styles.successMessage
-                    : styles.errorMessage
-                }`}
-              >
-                {message}
+          <section className="mt-7 overflow-hidden rounded-3xl border border-[#ddd8cc] bg-white shadow-sm">
+            <div className="border-b border-[#e5e0d5] px-7 py-8 sm:px-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#176043]">
+                Home healthcare
               </p>
-            )}
-          </form>
 
-          <aside
-            className={`${styles.card} ${styles.summaryCard}`}
-          >
-            <p className={styles.eyebrow}>SUMMARY</p>
+              <h1 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl">
+                Book a visit
+              </h1>
 
-            {selectedService ? (
-              <>
-                <img
-                  className={styles.summaryImage}
-                  src={
-                    selectedService.imageUrl ||
-                    createServiceImage(
-                      selectedService.name,
-                      selectedService.category
-                    )
-                  }
-                  alt={selectedService.name}
-                />
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-[#5c635e]">
+                Enter the patient information and choose the service,
+                nurse, date, and time.
+              </p>
+            </div>
 
-                <h2 className={styles.summaryTitle}>
-                  {selectedService.name}
-                </h2>
-
-                <p className={styles.summaryDesc}>
-                  {selectedService.description}
-                </p>
-
-                <div className={styles.summaryLine}>
-                  <span>Duration</span>
-
-                  <strong>
-                    {selectedService.durationMinutes} minutes
-                  </strong>
-                </div>
-
-                <div className={styles.summaryLine}>
-                  <span>Date</span>
-                  <strong>{date || "—"}</strong>
-                </div>
-
-                <div className={styles.summaryLine}>
-                  <span>Time</span>
-                  <strong>{selectedTime || "—"}</strong>
-                </div>
-
-                <div className={styles.summaryLine}>
-                  <span>Service fee</span>
-                  <strong>${selectedService.price}</strong>
-                </div>
-
-                <hr />
-
+            <div className="px-7 py-8 sm:px-10">
+              {error && (
                 <div
-                  className={`${styles.summaryLine} ${styles.total}`}
+                  role="alert"
+                  className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
                 >
-                  <span>Total today</span>
-                  <strong>${selectedService.price}</strong>
+                  {error}
                 </div>
-              </>
-            ) : (
-              <p className={styles.summaryDesc}>
-                Choose a service to see its information.
-              </p>
-            )}
-          </aside>
+              )}
+
+              {success && (
+                <div
+                  role="status"
+                  className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-800"
+                >
+                  <p className="font-semibold">{success}</p>
+
+                  <Link
+                    href="/my-appointments"
+                    className="mt-2 inline-block font-semibold underline"
+                  >
+                    View my appointments
+                  </Link>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="client"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    Patient name
+                    <span className="ml-1 text-red-600">*</span>
+                  </label>
+
+                  <input
+                    id="client"
+                    name="client"
+                    type="text"
+                    value={client}
+                    onChange={(event) => setClient(event.target.value)}
+                    disabled={submitting}
+                    placeholder="Enter the patient name"
+                    autoComplete="name"
+                    required
+                    className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition placeholder:text-[#979b97] focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="service"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    Service
+                    <span className="ml-1 text-red-600">*</span>
+                  </label>
+
+                  <select
+                    id="service"
+                    name="service"
+                    value={service}
+                    onChange={(event) => setService(event.target.value)}
+                    disabled={submitting}
+                    required
+                    className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  >
+                    <option value="">Select a service</option>
+
+                    {services.map((serviceName) => (
+                      <option key={serviceName} value={serviceName}>
+                        {serviceName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="nurse"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    Nurse
+                    <span className="ml-1 text-red-600">*</span>
+                  </label>
+
+                  <select
+                    id="nurse"
+                    name="nurse"
+                    value={nurse}
+                    onChange={(event) => setNurse(event.target.value)}
+                    disabled={submitting}
+                    required
+                    className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  >
+                    <option value="">Select a nurse</option>
+
+                    {nurses.map((nurseName) => (
+                      <option key={nurseName} value={nurseName}>
+                        {nurseName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="date"
+                      className="mb-2 block text-sm font-semibold"
+                    >
+                      Date
+                      <span className="ml-1 text-red-600">*</span>
+                    </label>
+
+                    <input
+                      id="date"
+                      name="date"
+                      type="date"
+                      min={getTodayDate()}
+                      value={date}
+                      onChange={(event) => {
+                        setDate(event.target.value);
+                        setTime("");
+                      }}
+                      disabled={submitting}
+                      required
+                      className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="time"
+                      className="mb-2 block text-sm font-semibold"
+                    >
+                      Time
+                      <span className="ml-1 text-red-600">*</span>
+                    </label>
+
+                    <select
+                      id="time"
+                      name="time"
+                      value={time}
+                      onChange={(event) => setTime(event.target.value)}
+                      disabled={submitting || !date}
+                      required
+                      className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    >
+                      <option value="">
+                        {date
+                          ? "Select a time"
+                          : "Select a date first"}
+                      </option>
+
+                      {timeSlots.map((timeSlot) => (
+                        <option key={timeSlot} value={timeSlot}>
+                          {timeSlot}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="address"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    Visit address
+                    <span className="ml-1 text-red-600">*</span>
+                  </label>
+
+                  <input
+                    id="address"
+                    name="address"
+                    type="text"
+                    value={address}
+                    onChange={(event) =>
+                      setAddress(event.target.value)
+                    }
+                    disabled={submitting}
+                    placeholder="Street, building, city"
+                    autoComplete="street-address"
+                    required
+                    className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition placeholder:text-[#979b97] focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="notes"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    Notes
+                    <span className="ml-2 font-normal text-[#717771]">
+                      Optional
+                    </span>
+                  </label>
+
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    rows={4}
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    disabled={submitting}
+                    placeholder="Add medical details or instructions for the visit"
+                    className="w-full resize-none rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition placeholder:text-[#979b97] focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-[#185c3d] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#114a30] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting
+                    ? "Booking appointment..."
+                    : "Book appointment"}
+                </button>
+              </form>
+            </div>
+          </section>
         </div>
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.footerBrand}>
-          <h3>Hearth.care</h3>
+      <Footer />
+    </div>
+  );
+}
 
-          <p>
-            Trusted home healthcare, booked in minutes. Care
-            that comes to you.
+function Header() {
+  return (
+    <header className="border-b border-[#e1ddd3] bg-[#f8f5ed]">
+      <div className="mx-auto flex h-[72px] max-w-[1180px] items-center justify-between px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#185c3d] font-serif text-lg text-white">
+            H
+          </span>
+
+          <span className="font-serif text-2xl">Hearth.care</span>
+        </Link>
+
+        <nav className="hidden items-center gap-8 text-sm md:flex">
+          <Link href="/" className="hover:text-[#176043]">
+            Home
+          </Link>
+
+          <Link
+            href="/services"
+            className="hover:text-[#176043]"
+          >
+            Services
+          </Link>
+
+          <Link
+            href="/my-appointments"
+            className="hover:text-[#176043]"
+          >
+            My visits
+          </Link>
+
+          <Link href="/login" className="hover:text-[#176043]">
+            Log in
+          </Link>
+        </nav>
+
+        <Link
+          href="/my-appointments"
+          className="rounded-full border border-[#185c3d] px-5 py-2.5 text-sm font-semibold text-[#185c3d] transition hover:bg-[#185c3d] hover:text-white"
+        >
+          My visits
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-16 border-t border-[#dedacf] bg-[#f8f5ed]">
+      <div className="mx-auto grid max-w-[1180px] gap-10 px-6 py-14 md:grid-cols-4 lg:px-8">
+        <div>
+          <h2 className="font-serif text-2xl">Hearth.care</h2>
+
+          <p className="mt-4 max-w-[240px] text-sm leading-6 text-[#5f655f]">
+            Trusted home healthcare, booked in minutes. Care that
+            comes to you.
           </p>
         </div>
 
-        <div className={styles.footerCol}>
-          <p className={styles.footerHeading}>CARE</p>
-          <Link href="/admin/services">Nursing</Link>
-          <Link href="/admin/services">Physiotherapy</Link>
-          <Link href="/admin/services">Doctor visits</Link>
-          <Link href="/admin/services">
-            Elderly companionship
-          </Link>
-        </div>
+        <FooterColumn
+          title="Care"
+          links={[
+            "Nursing",
+            "Physiotherapy",
+            "Doctor visits",
+            "Elderly companionship",
+          ]}
+        />
 
-        <div className={styles.footerCol}>
-          <p className={styles.footerHeading}>COMPANY</p>
-          <Link href="#">About</Link>
-          <Link href="#">Caregivers</Link>
-          <Link href="#">Careers</Link>
-          <Link href="#">Press</Link>
-        </div>
+        <FooterColumn
+          title="Company"
+          links={["About", "Caregivers", "Careers", "Press"]}
+        />
 
-        <div className={styles.footerCol}>
-          <p className={styles.footerHeading}>SUPPORT</p>
-          <Link href="#">Help center</Link>
-          <Link href="#">Contact</Link>
-          <Link href="#">Privacy</Link>
-          <Link href="#">Terms</Link>
+        <FooterColumn
+          title="Support"
+          links={["Help center", "Contact", "Privacy", "Terms"]}
+        />
+      </div>
+
+      <div className="border-t border-[#dedacf]">
+        <div className="mx-auto flex max-w-[1180px] flex-col justify-between gap-3 px-6 py-5 text-xs text-[#666b66] sm:flex-row lg:px-8">
+          <p>© 2026 Hearth Care Co. All rights reserved.</p>
+
+          <p>Licensed in-home care · Available 7 days a week</p>
         </div>
-      </footer>
+      </div>
+    </footer>
+  );
+}
+
+interface FooterColumnProps {
+  title: string;
+  links: string[];
+}
+
+function FooterColumn({
+  title,
+  links,
+}: FooterColumnProps) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#666c67]">
+        {title}
+      </h3>
+
+      <ul className="mt-4 space-y-3 text-sm">
+        {links.map((link) => (
+          <li key={link}>
+            <a
+              href="#"
+              className="transition hover:text-[#176043]"
+            >
+              {link}
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

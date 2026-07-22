@@ -1,29 +1,68 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { mockAppointments } from "@/lib/appointment";
+import connectDB from "@/lib/mongodb";
+import Appointment from "@/models/Appointment";
 
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    appointments: mockAppointments,
-  });
+  try {
+    await connectDB();
+
+    const databaseAppointments = await Appointment.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const appointments = databaseAppointments.map((appointment) => ({
+      id: appointment._id.toString(),
+      client: appointment.patientName,
+      service: appointment.serviceName,
+      nurse: appointment.caregiver,
+      date: appointment.date,
+      time: appointment.time,
+      address: appointment.address,
+      notes: appointment.notes ?? "",
+      status: appointment.status,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      appointments,
+    });
+  } catch (error) {
+    console.error("GET appointments error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to fetch appointments.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
+
     const body = await request.json();
 
-    const requiredFields = [
-      body.service,
-      body.nurse,
-      body.date,
-      body.time,
-    ];
+    const service = body.service?.trim();
+    const nurse = body.nurse?.trim();
+    const date = body.date?.trim();
+    const time = body.time?.trim();
+    const address = body.address?.trim();
+    const patientName =
+      body.patientName?.trim() ||
+      body.client?.trim() ||
+      "Omar Hammoud";
 
-    if (requiredFields.some((field) => !field)) {
+    if (!service || !nurse || !date || !time || !address) {
       return NextResponse.json(
         {
           success: false,
-          message: "Service, nurse, date, and time are required.",
+          message:
+            "Service, nurse, date, time, and address are required.",
         },
         {
           status: 400,
@@ -31,15 +70,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const appointment = {
-      id: Date.now().toString(),
-      client: "Omar Hammoud",
-      service: body.service,
-      nurse: body.nurse,
-      date: body.date,
-      time: body.time,
-      notes: body.notes ?? "",
+    const existingAppointment = await Appointment.findOne({
+      date,
+      time,
+    });
+
+    if (existingAppointment) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "This date and time are already booked.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    const createdAppointment = await Appointment.create({
+      serviceName: service,
+      patientName,
+      caregiver: nurse,
+      date,
+      time,
+      address,
+      notes: body.notes?.trim() ?? "",
       status: "pending",
+    });
+
+    const appointment = {
+      id: createdAppointment._id.toString(),
+      client: createdAppointment.patientName,
+      service: createdAppointment.serviceName,
+      nurse: createdAppointment.caregiver,
+      date: createdAppointment.date,
+      time: createdAppointment.time,
+      address: createdAppointment.address,
+      notes: createdAppointment.notes,
+      status: createdAppointment.status,
     };
 
     return NextResponse.json(
@@ -52,14 +120,19 @@ export async function POST(request: NextRequest) {
         status: 201,
       }
     );
-  } catch {
+  } catch (error) {
+    console.error("POST appointment error:", error);
+
     return NextResponse.json(
       {
         success: false,
-        message: "Invalid request body.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to create appointment.",
       },
       {
-        status: 400,
+        status: 500,
       }
     );
   }
