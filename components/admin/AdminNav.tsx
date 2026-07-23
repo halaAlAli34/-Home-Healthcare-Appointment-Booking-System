@@ -15,7 +15,7 @@ export default function AdminNav() {
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-hearth text-sm font-display font-semibold text-cream">
             H
           </span>

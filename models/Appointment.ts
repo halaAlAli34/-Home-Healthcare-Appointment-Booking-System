@@ -2,6 +2,19 @@ import mongoose, { Schema, models } from "mongoose";
 
 const appointmentSchema = new Schema(
   {
+
+    serviceId: {
+  type: String,
+  required: true,
+},
+
+servicePrice: {
+  type: Number,
+  default: 0,
+  min: 0,
+},
+
+
     serviceName: {
       type: String,
       required: true,
@@ -69,8 +82,10 @@ appointmentSchema.index(
   }
 );
 
+
 const Appointment =
   models.Appointment ||
   mongoose.model("Appointment", appointmentSchema);
+
 
 export default Appointment;

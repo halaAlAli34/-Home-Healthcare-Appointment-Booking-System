@@ -12,6 +12,8 @@ interface ApiAppointment {
   _id?: string;
   id?: string;
 
+  serviceId?: string;
+  
   serviceName?: string;
 
   service?: {
@@ -108,6 +110,7 @@ export default function MyAppointmentsPage() {
 
     return {
       id: appointment._id || appointment.id || "",
+      serviceId: appointment.serviceId || "",
       serviceName: serviceName || "Service not specified",
       patientName: appointment.patientName,
       caregiver: appointment.caregiver,

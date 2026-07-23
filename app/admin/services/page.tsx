@@ -1,40 +1,136 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import ServiceCard from "@/components/admin/ServiceCard";
 import ServiceModal from "@/components/admin/ServiceModal";
-import { initialServices } from "@/lib/mock-data";
 import { Service } from "@/lib/types";
 
 export default function ManageServicesPage() {
-  const [services, setServices] = useState<Service[]>(initialServices);
+const [services, setServices] = useState<Service[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
-  function openAddModal() {
-    setEditingService(null);
-    setModalOpen(true);
+
+  useEffect(() => {
+  fetchServices();
+}, []);
+
+async function fetchServices() {
+  try {
+    const response = await fetch("/api/admin/services");
+
+    const data = await response.json();
+
+    setServices(data.services ?? []);
+
+  } catch (error) {
+    console.error("Failed to fetch services", error);
   }
+}
+
+
+function openAddModal() {
+  console.log("ADD CLICKED");
+  setEditingService(null);
+  setModalOpen(true);
+}
 
   function openEditModal(service: Service) {
     setEditingService(service);
     setModalOpen(true);
   }
 
-  function handleSave(service: Service) {
-    setServices((prev) => {
-      const exists = prev.some((s) => s.id === service.id);
-      return exists
-        ? prev.map((s) => (s.id === service.id ? service : s))
-        : [...prev, service];
-    });
-    setModalOpen(false);
-  }
+async function handleSave(service: Service) {
+  try {
+    const isEditing = Boolean(editingService);
 
-  function handleDelete(id: string) {
-    setServices((prev) => prev.filter((s) => s.id !== id));
+    const response = await fetch(
+      isEditing
+        ? `/api/services/${service.id}`
+        : "/api/services",
+      {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(service),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to save service");
+    }
+
+    setServices((prev) =>
+      isEditing
+        ? prev.map((s) =>
+            s.id === service.id ? data.service : s
+          )
+        : [...prev, data.service]
+    );
+
+    setModalOpen(false);
+    setEditingService(null);
+
+  } catch (error) {
+    console.error("Save service error:", error);
   }
+}
+
+  async function handleDelete(id: string) {
+  try {
+    const response = await fetch(`/api/services/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to delete service");
+    }
+
+    setServices((prev) =>
+      prev.filter((service) => service.id !== id)
+    );
+
+  } catch (error) {
+    console.error("Delete service error:", error);
+  }
+}
+
+
+async function handleToggleActive(id: string, active: boolean) {
+  try {
+    const response = await fetch(`/api/services/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        active: !active,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to update service.");
+    }
+
+    setServices((prev) =>
+      prev.map((service) =>
+        service.id === id
+          ? { ...service, active: !active }
+          : service
+      )
+    );
+  } catch (error) {
+    console.error("Toggle service error:", error);
+  }
+}
+
 
   return (
     <div>
@@ -71,6 +167,7 @@ export default function ManageServicesPage() {
               service={service}
               onEdit={openEditModal}
               onDelete={handleDelete}
+              onToggleActive={handleToggleActive}
             />
           ))}
         </div>

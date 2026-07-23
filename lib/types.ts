@@ -13,6 +13,7 @@ export interface Service {
   price: number;
   description: string;
   imageUrl?: string;
+  active: boolean;
 }
 
 export type AppointmentStatus =
@@ -24,6 +25,7 @@ export type AppointmentStatus =
 
 export interface Appointment {
   id: string;
+  serviceId: string;
   serviceName: string;
   patientName: string;
   caregiver?: string;
