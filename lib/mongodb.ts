@@ -30,7 +30,7 @@ export default async function connectDB() {
 
   if (!cached!.promise) {
     // TypeScript now knows MONGODB_URI is a string
-    cached!.promise = mongoose.connect(MONGODB_URI);
+    cached!.promise = mongoose.connect(MONGODB_URI as string);
   }
 
   cached!.conn = await cached!.promise;
