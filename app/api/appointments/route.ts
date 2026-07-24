@@ -11,6 +11,12 @@ export const runtime = "nodejs";
 interface AuthenticationPayload extends JwtPayload {
   userId?: string;
   id?: string;
+  role?: string;
+}
+
+interface AuthenticatedUser {
+  userId: string;
+  role: string;
 }
 
 interface CreateAppointmentBody {
@@ -21,6 +27,37 @@ interface CreateAppointmentBody {
   address?: string;
   phone?: string;
   notes?: string;
+}
+
+function getAuthenticatedUser(
+  request: NextRequest
+): AuthenticatedUser | null {
+  const token =
+    request.cookies.get(AUTH_COOKIE_NAME)?.value;
+
+  if (!token || !process.env.JWT_SECRET) {
+    return null;
+  }
+
+  try {
+    const payload = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    ) as AuthenticationPayload;
+
+    const userId = payload.userId || payload.id;
+
+    if (!userId) {
+      return null;
+    }
+
+    return {
+      userId,
+      role: payload.role?.toLowerCase() || "patient",
+    };
+  } catch {
+    return null;
+  }
 }
 
 function timeToMinutes(time: string): number {
@@ -34,7 +71,7 @@ function minutesToTime(totalMinutes: number): string {
   const minutes = totalMinutes % 60;
 
   return `${String(hours).padStart(2, "0")}:${String(
-    minutes,
+    minutes
   ).padStart(2, "0")}`;
 }
 
@@ -46,45 +83,43 @@ function isValidDate(date: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
 
-function getAuthenticatedUserId(
-  request: NextRequest,
-): string | null {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-
-  if (!token || !process.env.JWT_SECRET) {
-    return null;
-  }
-
-  try {
-    const payload = jwt.verify(
-      token,
-      process.env.JWT_SECRET,
-    ) as AuthenticationPayload;
-
-    return payload.userId || payload.id || null;
-  } catch {
-    return null;
-  }
-}
-
+/*
+ * GET appointments
+ *
+ * Admin:
+ * Returns all appointments.
+ *
+ * Patient:
+ * Returns only their own appointments.
+ */
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const patientId = getAuthenticatedUserId(request);
+    const authenticatedUser =
+      getAuthenticatedUser(request);
 
-    if (!patientId) {
+    if (!authenticatedUser) {
       return NextResponse.json(
         {
+          success: false,
           message: "Unauthorized.",
         },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
-    const appointments = await Appointment.find({
-      patientId,
-    })
+    const isAdmin =
+      authenticatedUser.role === "admin";
+
+    const filter = isAdmin
+      ? {}
+      : {
+          patientId: authenticatedUser.userId,
+        };
+
+    const appointments = await Appointment.find(filter)
+      .populate("patientId", "name fullName email")
       .sort({
         date: 1,
         startTime: 1,
@@ -92,6 +127,7 @@ export async function GET(request: NextRequest) {
       .lean();
 
     return NextResponse.json({
+      success: true,
       appointments,
     });
   } catch (error) {
@@ -99,27 +135,38 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
+        success: false,
         message: "Failed to load appointments.",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
 
+/*
+ * POST appointment
+ *
+ * Creates an appointment for the authenticated patient.
+ * Prevents caregiver time conflicts.
+ */
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const patientId = getAuthenticatedUserId(request);
+    const authenticatedUser =
+      getAuthenticatedUser(request);
 
-    if (!patientId) {
+    if (!authenticatedUser) {
       return NextResponse.json(
         {
+          success: false,
           message: "Unauthorized.",
         },
-        { status: 401 },
+        { status: 401 }
       );
     }
+
+    const patientId = authenticatedUser.userId;
 
     const body =
       (await request.json()) as CreateAppointmentBody;
@@ -144,32 +191,37 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         {
+          success: false,
           message:
             "Service, caregiver, date, time, address, and phone are required.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (!isValidDate(date)) {
       return NextResponse.json(
         {
+          success: false,
           message: "Invalid appointment date.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (!isValidTime(startTime)) {
       return NextResponse.json(
         {
+          success: false,
           message: "Invalid appointment time.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const selectedDate = new Date(`${date}T00:00:00`);
+    const selectedDate = new Date(
+      `${date}T00:00:00`
+    );
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -177,60 +229,81 @@ export async function POST(request: NextRequest) {
     if (selectedDate < today) {
       return NextResponse.json(
         {
-          message: "You cannot book an appointment in the past.",
+          success: false,
+          message:
+            "You cannot book an appointment in the past.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const service = await Service.findById(serviceId).lean();
+    const service = await Service.findById(
+      serviceId
+    ).lean();
 
     if (!service) {
       return NextResponse.json(
         {
+          success: false,
           message: "Service not found.",
         },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     if (service.active === false) {
       return NextResponse.json(
         {
-          message: "This service is currently unavailable.",
+          success: false,
+          message:
+            "This service is currently unavailable.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const caregiver = getCaregiverById(caregiverId);
+    const caregiver =
+      getCaregiverById(caregiverId);
 
     if (!caregiver) {
       return NextResponse.json(
         {
+          success: false,
           message: "Caregiver not found.",
         },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     const durationMinutes =
-      service.durationMinutes || service.duration || 30;
+  service.durationMinutes || 30;
 
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = startMinutes + durationMinutes;
+    const startMinutes =
+      timeToMinutes(startTime);
 
-    if (endMinutes > 24 * 60) {
+    const endMinutes =
+      startMinutes + durationMinutes;
+
+    if (endMinutes >= 24 * 60) {
       return NextResponse.json(
         {
-          message: "The appointment ends after midnight.",
+          success: false,
+          message:
+            "The appointment must end before midnight.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const endTime = minutesToTime(endMinutes);
+    const endTime =
+      minutesToTime(endMinutes);
 
+    /*
+     * Conflict rule:
+     *
+     * Existing appointment starts before the new one ends,
+     * and existing appointment ends after the new one starts.
+     */
     const conflictingAppointment =
       await Appointment.findOne({
         caregiverId,
@@ -249,52 +322,80 @@ export async function POST(request: NextRequest) {
     if (conflictingAppointment) {
       return NextResponse.json(
         {
+          success: false,
           message:
             "This caregiver is unavailable during the selected time.",
         },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
-    const appointment = await Appointment.create({
-      patientId,
-      serviceId: service._id,
+    const appointment =
+      await Appointment.create({
+        patientId,
+        serviceId: service._id,
 
-      serviceName: service.name,
-      servicePrice: service.price,
+        serviceName: service.name,
+        servicePrice: service.price,
 
-      caregiverId: caregiver.id,
-      caregiverName: caregiver.name,
-      caregiverRole: caregiver.role,
-      caregiverSpecialty: caregiver.specialty,
+        caregiverId: caregiver.id,
+        caregiverName: caregiver.name,
+        caregiverRole: caregiver.role,
+        caregiverSpecialty:
+          caregiver.specialty,
 
-      date,
-      startTime,
-      endTime,
-      durationMinutes,
+        date,
+        startTime,
+        endTime,
+        durationMinutes,
 
-      address: address.trim(),
-      phone: phone.trim(),
-      notes: notes?.trim() || "",
+        address: address.trim(),
+        phone: phone.trim(),
+        notes: notes?.trim() || "",
 
-      status: "pending",
-    });
+        status: "pending",
+      });
 
     return NextResponse.json(
       {
-        message: "Appointment booked successfully.",
+        success: true,
+        message:
+          "Appointment booked successfully.",
         appointment,
       },
-      { status: 201 },
+      { status: 201 }
     );
-  } catch (error) {
-    console.error("Create appointment error:", error);
+  } catch (error: unknown) {
+    console.error(
+      "Create appointment error:",
+      error
+    );
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === 11000
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "An old database uniqueness rule blocked this appointment. Check the indexes in the appointments collection.",
+        },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json(
       {
-        message: "Failed to create appointment.",
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to create appointment.",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

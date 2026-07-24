@@ -22,37 +22,40 @@ export interface Appointment {
   status: AppointmentStatus;
 }
 
+interface ApiPatient {
+  _id: string;
+  name?: string;
+  fullName?: string;
+  email?: string;
+}
+
 interface ApiAppointment {
-  id: string;
+  _id: string;
   serviceName: string;
-  patientName: string;
-  caregiver: string;
+  patientId?: ApiPatient | string;
+  patientName?: string;
+  caregiverName: string;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   address: string;
-  notes: string;
+  notes?: string;
   status: AppointmentStatus;
 }
 
-interface ApiUpdateAppointmentResponse {
-  success: boolean;
-  message?: string;
-  appointment?: ApiAppointment;
-}
-
-type Tab = "pending" | "accepted" | "rejected" | "all";
-
 interface AppointmentsResponse {
-  success: boolean;
+  success?: boolean;
   message?: string;
   appointments?: ApiAppointment[];
 }
 
 interface UpdateAppointmentResponse {
-  success: boolean;
+  success?: boolean;
   message?: string;
   appointment?: ApiAppointment;
 }
+
+type Tab = "pending" | "accepted" | "rejected" | "all";
 
 const tabs: { key: Tab; label: string }[] = [
   { key: "pending", label: "Pending" },
@@ -61,18 +64,61 @@ const tabs: { key: Tab; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
+function getPatientName(appointment: ApiAppointment): string {
+  if (appointment.patientName) {
+    return appointment.patientName;
+  }
+
+  if (
+    appointment.patientId &&
+    typeof appointment.patientId === "object"
+  ) {
+    return (
+      appointment.patientId.name ||
+      appointment.patientId.fullName ||
+      appointment.patientId.email ||
+      "Unknown patient"
+    );
+  }
+
+  return "Unknown patient";
+}
+
+function mapApiAppointment(
+  appointment: ApiAppointment
+): Appointment {
+  return {
+    id: appointment._id,
+    client: getPatientName(appointment),
+    service: appointment.serviceName,
+    nurse: appointment.caregiverName,
+    date: appointment.date,
+    time: `${appointment.startTime} - ${appointment.endTime}`,
+    address: appointment.address,
+    notes: appointment.notes ?? "",
+    status: appointment.status,
+  };
+}
+
 export default function ManageAppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>("pending");
+  const [appointments, setAppointments] = useState<
+    Appointment[]
+  >([]);
+
+  const [activeTab, setActiveTab] =
+    useState<Tab>("pending");
 
   const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const [updatingId, setUpdatingId] = useState<
+    string | null
+  >(null);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    fetchAppointments();
+    void fetchAppointments();
   }, []);
 
   async function fetchAppointments() {
@@ -84,29 +130,21 @@ export default function ManageAppointmentsPage() {
       const response = await fetch("/api/appointments", {
         method: "GET",
         cache: "no-store",
+        credentials: "include",
       });
 
-      const data: AppointmentsResponse = await response.json();
+      const data =
+        (await response.json()) as AppointmentsResponse;
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
         throw new Error(
           data.message || "Failed to fetch appointments."
         );
       }
 
       setAppointments(
-  (data.appointments ?? []).map((appointment) => ({
-    id: appointment.id,
-    client: appointment.patientName,
-    service: appointment.serviceName,
-    nurse: appointment.caregiver,
-    date: appointment.date,
-    time: appointment.time,
-    address: appointment.address,
-    notes: appointment.notes,
-    status: appointment.status,
-  }))
-);
+        (data.appointments ?? []).map(mapApiAppointment)
+      );
     } catch (error) {
       console.error("Fetch appointments error:", error);
 
@@ -129,45 +167,50 @@ export default function ManageAppointmentsPage() {
       setError("");
       setSuccess("");
 
-      const response = await fetch(`/api/appointments/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status,
-        }),
-      });
+      const response = await fetch(
+        `/api/appointments/${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            status,
+          }),
+        }
+      );
 
-      const data: UpdateAppointmentResponse =
-        await response.json();
+      const data =
+        (await response.json()) as UpdateAppointmentResponse;
 
-      if (!response.ok || !data.success || !data.appointment) {
+      if (!response.ok) {
         throw new Error(
           data.message || "Failed to update appointment."
         );
       }
 
+      if (!data.appointment) {
+        throw new Error(
+          "The updated appointment was not returned."
+        );
+      }
+
+      const updatedAppointment = mapApiAppointment(
+        data.appointment
+      );
+
       setAppointments((previousAppointments) =>
-  previousAppointments.map((appointment) =>
-    appointment.id === id
-      ? {
-          id: data.appointment!.id,
-          client: data.appointment!.patientName,
-          service: data.appointment!.serviceName,
-          nurse: data.appointment!.caregiver,
-          date: data.appointment!.date,
-          time: data.appointment!.time,
-          address: data.appointment!.address,
-          notes: data.appointment!.notes,
-          status: data.appointment!.status,
-        }
-      : appointment
-  )
-);
+        previousAppointments.map((appointment) =>
+          appointment.id === id
+            ? updatedAppointment
+            : appointment
+        )
+      );
 
       setSuccess(
-        data.message || `Appointment ${status} successfully.`
+        data.message ||
+          `Appointment ${status} successfully.`
       );
     } catch (error) {
       console.error("Update appointment error:", error);
@@ -188,11 +231,12 @@ export default function ManageAppointmentsPage() {
     }
 
     return appointments.filter(
-      (appointment) => appointment.status === activeTab
+      (appointment) =>
+        appointment.status === activeTab
     );
   }, [appointments, activeTab]);
 
-  function getTabCount(tab: Tab) {
+  function getTabCount(tab: Tab): number {
     if (tab === "all") {
       return appointments.length;
     }
@@ -215,13 +259,14 @@ export default function ManageAppointmentsPage() {
           </h1>
 
           <p className="mt-2 text-ink-muted">
-            Review requests and confirm which visits go ahead.
+            Review requests and confirm which visits go
+            ahead.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={fetchAppointments}
+          onClick={() => void fetchAppointments()}
           disabled={loading}
           className="rounded-pill border border-border bg-white px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -278,8 +323,11 @@ export default function ManageAppointmentsPage() {
         </div>
       ) : filteredAppointments.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-border bg-white p-10 text-center text-ink-muted">
-          No {activeTab === "all" ? "" : activeTab} appointments
-          here.
+          No{" "}
+          {activeTab === "all"
+            ? ""
+            : `${activeTab} `}
+          appointments here.
         </div>
       ) : (
         <div className="mt-6 space-y-3">
@@ -287,15 +335,26 @@ export default function ManageAppointmentsPage() {
             <AppointmentRow
               key={appointment.id}
               appointment={appointment}
-              disabled={updatingId === appointment.id}
+              disabled={
+                updatingId === appointment.id
+              }
               onAccept={(id) =>
-                updateAppointmentStatus(id, "accepted")
+                void updateAppointmentStatus(
+                  id,
+                  "accepted"
+                )
               }
               onReject={(id) =>
-                updateAppointmentStatus(id, "rejected")
+                void updateAppointmentStatus(
+                  id,
+                  "rejected"
+                )
               }
               onComplete={(id) =>
-                updateAppointmentStatus(id, "completed")
+                void updateAppointmentStatus(
+                  id,
+                  "completed"
+                )
               }
             />
           ))}
