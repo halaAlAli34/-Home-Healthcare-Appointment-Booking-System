@@ -63,7 +63,7 @@ export default function Navbar() {
 
           {!loading && user?.role === "patient" && (
             <Link href="/my-appointments" className={linkClass("/my-appointments")}>
-              My visits
+              Appointments
             </Link>
           )}
           {!loading && user?.role === "admin" && (
@@ -140,7 +140,7 @@ export default function Navbar() {
               onClick={() => setMobileOpen(false)}
             >
               <CalendarCheck className="h-4 w-4" aria-hidden />
-              My visits
+              Appointments
             </Link>
           )}
           {!loading && user?.role === "admin" && (
