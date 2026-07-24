@@ -1,29 +1,30 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
-
-export type ServiceCategory =
-  | "Nursing"
-  | "Recovery"
-  | "Medical"
-  | "Companionship"
-  | "Preventive";
-
+import mongoose, {
+  Document,
+  Model,
+  Schema,
+} from "mongoose";
 
 export interface IService extends Document {
   name: string;
-  category: ServiceCategory;
-  durationMinutes: number;
-  price: number;
   description: string;
+  category: string;
+  price: number;
+  durationMinutes: number;
   imageUrl?: string;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-
-const ServiceSchema = new Schema<IService>(
+const serviceSchema = new Schema<IService>(
   {
     name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    description: {
       type: String,
       required: true,
       trim: true,
@@ -33,18 +34,12 @@ const ServiceSchema = new Schema<IService>(
       type: String,
       required: true,
       enum: [
+        "Medical",
         "Nursing",
         "Recovery",
-        "Medical",
-        "Companionship",
         "Preventive",
+        "Companionship",
       ],
-    },
-
-    durationMinutes: {
-      type: Number,
-      required: true,
-      min: 1,
     },
 
     price: {
@@ -53,14 +48,16 @@ const ServiceSchema = new Schema<IService>(
       min: 0,
     },
 
-    description: {
-      type: String,
+    durationMinutes: {
+      type: Number,
       required: true,
-      trim: true,
+      min: 30,
+      default: 30,
     },
 
     imageUrl: {
       type: String,
+      default: "",
     },
 
     active: {
@@ -70,13 +67,11 @@ const ServiceSchema = new Schema<IService>(
   },
   {
     timestamps: true,
-  }
+  },
 );
-
 
 const Service: Model<IService> =
   mongoose.models.Service ||
-  mongoose.model<IService>("Service", ServiceSchema);
-
+  mongoose.model<IService>("Service", serviceSchema);
 
 export default Service;

@@ -248,7 +248,7 @@ export default function MyAppointmentsPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f5ed] text-[#17231c]">
-      <Header />
+
 
       <main className="mx-auto min-h-[635px] max-w-[1180px] px-6 py-16 lg:px-8">
         <section>
@@ -328,7 +328,7 @@ export default function MyAppointmentsPage() {
         </section>
       </main>
 
-      <Footer />
+
     </div>
   );
 }
@@ -398,104 +398,6 @@ function EmptyAppointments() {
   );
 }
 
-function Header() {
-  return (
-    <header className="border-b border-[#e1ddd3] bg-[#f8f5ed]">
-      <div className="mx-auto flex h-[72px] max-w-[1180px] items-center justify-between px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#185c3d] font-serif text-lg text-white">
-            H
-          </span>
-
-          <span className="font-serif text-2xl">
-            Hearth.care
-          </span>
-        </Link>
-
-        <nav className="hidden items-center gap-8 text-sm md:flex">
-          <Link href="/" className="hover:text-[#176043]">
-            Home
-          </Link>
-
-          <Link
-            href="/services"
-            className="hover:text-[#176043]"
-          >
-            Services
-          </Link>
-
-          <Link
-            href="/my-appointments"
-            className="font-medium text-[#176043]"
-          >
-            My visits
-          </Link>
-
-          <Link
-            href="/login"
-            className="hover:text-[#176043]"
-          >
-            Log in
-          </Link>
-        </nav>
-
-        <Link
-          href="/book-appointment"
-          className="rounded-full bg-[#185c3d] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#114a30]"
-        >
-          Book a visit
-        </Link>
-      </div>
-    </header>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-[#dedacf] bg-[#f8f5ed]">
-      <div className="mx-auto grid max-w-[1180px] gap-10 px-6 py-14 md:grid-cols-4 lg:px-8">
-        <div>
-          <h2 className="font-serif text-2xl">
-            Hearth.care
-          </h2>
-
-          <p className="mt-4 max-w-[240px] text-sm leading-6 text-[#5f655f]">
-            Trusted home healthcare, booked in minutes. Care that
-            comes to you.
-          </p>
-        </div>
-
-        <FooterColumn
-          title="Care"
-          links={[
-            "Nursing",
-            "Physiotherapy",
-            "Doctor visits",
-            "Elderly companionship",
-          ]}
-        />
-
-        <FooterColumn
-          title="Company"
-          links={["About", "Caregivers", "Careers", "Press"]}
-        />
-
-        <FooterColumn
-          title="Support"
-          links={["Help center", "Contact", "Privacy", "Terms"]}
-        />
-      </div>
-
-      <div className="border-t border-[#dedacf]">
-        <div className="mx-auto flex max-w-[1180px] flex-col justify-between gap-3 px-6 py-5 text-xs text-[#666b66] sm:flex-row lg:px-8">
-          <p>© 2026 Hearth Care Co. All rights reserved.</p>
-
-          <p>Licensed in-home care · Available 7 days a week</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 interface FooterColumnProps {
   title: string;
