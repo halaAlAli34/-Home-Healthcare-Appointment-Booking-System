@@ -25,8 +25,8 @@ const emptyDraft = {
   durationMinutes: 30,
   price: 0,
   description: "",
+  imageUrl: "",
 };
-
 export default function ServiceModal({
   open,
   initialService,
@@ -37,13 +37,14 @@ export default function ServiceModal({
 
   useEffect(() => {
     if (initialService) {
-      setDraft({
-        name: initialService.name,
-        category: initialService.category,
-        durationMinutes: initialService.durationMinutes,
-        price: initialService.price,
-        description: initialService.description,
-      });
+  setDraft({
+    name: initialService.name ?? "",
+    category: initialService.category ?? "Nursing",
+    durationMinutes: initialService.durationMinutes ?? 30,
+    price: initialService.price ?? 0,
+    description: initialService.description ?? "",
+    imageUrl: initialService.imageUrl ?? "",
+  });
     } else {
       setDraft(emptyDraft);
     }
@@ -58,6 +59,7 @@ export default function ServiceModal({
     onSave({
       id: initialService?.id ?? `srv-${Date.now()}`,
       ...draft,
+      active: initialService?.active ?? true,
     });
   }
 
@@ -172,6 +174,25 @@ export default function ServiceModal({
             />
           </div>
 
+                    <div>
+  <label className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+    Image URL
+  </label>
+
+  <input
+    type="text"
+    value={draft.imageUrl}
+    onChange={(e) =>
+      setDraft({
+        ...draft,
+        imageUrl: e.target.value,
+      })
+    }
+    placeholder="https://example.com/image.jpg"
+    className="mt-1.5 w-full rounded-xl border border-border bg-cream px-4 py-2.5 text-sm text-ink focus:border-hearth focus:outline-none"
+  />
+</div>
+
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
@@ -187,6 +208,8 @@ export default function ServiceModal({
               Cancel
             </button>
           </div>
+
+
         </form>
       </div>
     </div>

@@ -22,18 +22,36 @@ export interface Appointment {
   status: AppointmentStatus;
 }
 
+interface ApiAppointment {
+  id: string;
+  serviceName: string;
+  patientName: string;
+  caregiver: string;
+  date: string;
+  time: string;
+  address: string;
+  notes: string;
+  status: AppointmentStatus;
+}
+
+interface ApiUpdateAppointmentResponse {
+  success: boolean;
+  message?: string;
+  appointment?: ApiAppointment;
+}
+
 type Tab = "pending" | "accepted" | "rejected" | "all";
 
 interface AppointmentsResponse {
   success: boolean;
   message?: string;
-  appointments?: Appointment[];
+  appointments?: ApiAppointment[];
 }
 
 interface UpdateAppointmentResponse {
   success: boolean;
   message?: string;
-  appointment?: Appointment;
+  appointment?: ApiAppointment;
 }
 
 const tabs: { key: Tab; label: string }[] = [
@@ -76,7 +94,19 @@ export default function ManageAppointmentsPage() {
         );
       }
 
-      setAppointments(data.appointments ?? []);
+      setAppointments(
+  (data.appointments ?? []).map((appointment) => ({
+    id: appointment.id,
+    client: appointment.patientName,
+    service: appointment.serviceName,
+    nurse: appointment.caregiver,
+    date: appointment.date,
+    time: appointment.time,
+    address: appointment.address,
+    notes: appointment.notes,
+    status: appointment.status,
+  }))
+);
     } catch (error) {
       console.error("Fetch appointments error:", error);
 
@@ -119,12 +149,22 @@ export default function ManageAppointmentsPage() {
       }
 
       setAppointments((previousAppointments) =>
-        previousAppointments.map((appointment) =>
-          appointment.id === id
-            ? data.appointment!
-            : appointment
-        )
-      );
+  previousAppointments.map((appointment) =>
+    appointment.id === id
+      ? {
+          id: data.appointment!.id,
+          client: data.appointment!.patientName,
+          service: data.appointment!.serviceName,
+          nurse: data.appointment!.caregiver,
+          date: data.appointment!.date,
+          time: data.appointment!.time,
+          address: data.appointment!.address,
+          notes: data.appointment!.notes,
+          status: data.appointment!.status,
+        }
+      : appointment
+  )
+);
 
       setSuccess(
         data.message || `Appointment ${status} successfully.`

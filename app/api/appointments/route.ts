@@ -10,17 +10,18 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    const appointments = databaseAppointments.map((appointment) => ({
-      id: appointment._id.toString(),
-      client: appointment.patientName,
-      service: appointment.serviceName,
-      nurse: appointment.caregiver,
-      date: appointment.date,
-      time: appointment.time,
-      address: appointment.address,
-      notes: appointment.notes ?? "",
-      status: appointment.status,
-    }));
+const appointments = databaseAppointments.map((appointment) => ({
+  serviceId: appointment.serviceId,
+  id: appointment._id.toString(),
+  serviceName: appointment.serviceName,
+  patientName: appointment.patientName,
+  caregiver: appointment.caregiver,
+  date: appointment.date,
+  time: appointment.time,
+  address: appointment.address,
+  notes: appointment.notes ?? "",
+  status: appointment.status,
+}));
 
     return NextResponse.json({
       success: true,
@@ -47,17 +48,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const service = body.service?.trim();
-    const nurse = body.nurse?.trim();
-    const date = body.date?.trim();
-    const time = body.time?.trim();
-    const address = body.address?.trim();
-    const patientName =
-      body.patientName?.trim() ||
-      body.client?.trim() ||
-      "Omar Hammoud";
+const serviceId = body.serviceId?.trim();
+const serviceName = body.serviceName?.trim();
+const caregiver = body.caregiver?.trim();
+const date = body.date?.trim();
+const time = body.time?.trim();
+const address = body.address?.trim();
+const patientName = body.patientName?.trim();
 
-    if (!service || !nurse || !date || !time || !address) {
+if (!serviceId || !serviceName || !caregiver || !date || !time || !address || !patientName) {
       return NextResponse.json(
         {
           success: false,
@@ -87,19 +86,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const createdAppointment = await Appointment.create({
-      serviceName: service,
-      patientName,
-      caregiver: nurse,
-      date,
-      time,
-      address,
-      notes: body.notes?.trim() ?? "",
-      status: "pending",
-    });
+const createdAppointment = await Appointment.create({
+  serviceId,
+  serviceName,
+  patientName,
+  caregiver,
+  date,
+  time,
+  address,
+  notes: body.notes?.trim() ?? "",
+  status: "pending",
+});
 
     const appointment = {
       id: createdAppointment._id.toString(),
+      serviceId: createdAppointment.serviceId,
       client: createdAppointment.patientName,
       service: createdAppointment.serviceName,
       nurse: createdAppointment.caregiver,

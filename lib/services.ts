@@ -1,5 +1,18 @@
 import { Service } from "@/types";
 
+interface ServicesResponse {
+  success: boolean;
+  services: {
+    id: string;
+    name: string;
+    category: Service["category"];
+    durationMinutes: number;
+    price: number;
+    description: string;
+    imageUrl?: string;
+  }[];
+}
+
 /**
  * The Services CRUD API (GET/POST/PUT/DELETE /api/services) is owned by a
  * teammate per the task split. Home and Services pages are Hala's pages,
@@ -82,10 +95,21 @@ const FALLBACK_SERVICES: Service[] = [
 export async function getServices(): Promise<Service[]> {
   try {
     const res = await fetch("/api/services", { cache: "no-store" });
+
     if (!res.ok) return FALLBACK_SERVICES;
-    const data = await res.json();
+
+    const data: ServicesResponse = await res.json();
+
     return Array.isArray(data.services) && data.services.length > 0
-      ? data.services
+      ? data.services.map((service) => ({
+          id: service.id,
+          name: service.name,
+          description: service.description,
+          price: service.price,
+          duration: `${service.durationMinutes} min`,
+          category: service.category,
+          image: service.imageUrl ?? "",
+        }))
       : FALLBACK_SERVICES;
   } catch {
     return FALLBACK_SERVICES;

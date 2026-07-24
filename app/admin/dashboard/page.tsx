@@ -1,33 +1,92 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarClock, CheckCircle2, ListChecks, Wallet } from "lucide-react";
 import DashboardCard from "@/components/admin/DashboardCard";
-import { initialAppointments } from "@/lib/mock-data";
 import { Appointment } from "@/lib/types";
 
 export default function AdminDashboardPage() {
-  const [appointments, setAppointments] =
-    useState<Appointment[]>(initialAppointments);
 
-  const pending = useMemo(
-    () => appointments.filter((a) => a.status === "pending"),
-    [appointments]
-  );
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  function updateStatus(id: string, status: Appointment["status"]) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a))
-    );
+  const [stats, setStats] = useState({
+  pendingAppointments: 0,
+  todaysVisits: 0,
+  activeServices: 0,
+  revenueThisMonth: 0,
+});
+
+useEffect(() => {
+  async function loadDashboard() {
+    try {
+      const statsResponse = await fetch("/api/admin/dashboard");
+      const statsData = await statsResponse.json();
+
+      setStats(statsData);
+
+
+      const appointmentsResponse = await fetch("/api/appointments");
+      const appointmentsData = await appointmentsResponse.json();
+
+      setAppointments(
+        appointmentsData.appointments
+      );
+
+    } catch (error) {
+      console.error(
+        "Failed to load dashboard data",
+        error
+      );
+    }
   }
 
-  const stats = {
-    pendingAppointments: pending.length,
-    todaysVisits: appointments.filter((a) => a.date === "Thu, Jul 30").length,
-    activeServices: 6,
-    revenueThisMonth: 4280,
-  };
+  loadDashboard();
+
+}, []);
+
+const pending = appointments.filter(
+  (a) => a.status === "pending"
+);
+
+
+async function updateStatus(
+  id: string,
+  status: Appointment["status"]
+) {
+  try {
+    const endpoint = `/api/appointments/${id}`;
+
+
+    await fetch(endpoint, {
+  method: "PATCH",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    status,
+  }),
+});
+
+
+    setAppointments((prev) =>
+      prev.map((appointment) =>
+        appointment.id === id
+          ? {
+              ...appointment,
+              status,
+            }
+          : appointment
+      )
+    );
+
+  } catch (error) {
+    console.error(
+      "Failed to update appointment status",
+      error
+    );
+  }
+}
 
   return (
     <div>

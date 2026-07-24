@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const timeSlots = [
   "09:00 AM",
@@ -16,13 +17,7 @@ const timeSlots = [
   "03:00 PM",
 ];
 
-const services = [
-  "In-home Nursing",
-  "Post-surgery Recovery",
-  "Doctor Visit",
-  "Elderly Companionship",
-  "Preventive Check-up",
-];
+
 
 const nurses = [
   "Nurse Sarah",
@@ -33,11 +28,54 @@ const nurses = [
 export default function BookAppointmentPage() {
   const [client, setClient] = useState("");
   const [service, setService] = useState("");
+  const [serviceId, setServiceId] = useState("");
   const [nurse, setNurse] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+const [services, setServices] = useState<any[]>([]);
+const searchParams = useSearchParams();
+
+const selectedServiceId = searchParams.get("serviceId");
+  useEffect(() => {
+  async function fetchServices() {
+    try {
+      const res = await fetch("/api/services");
+      const data = await res.json();
+
+      setServices(data.services ?? []);
+    } catch (error) {
+      console.error("Failed to fetch services", error);
+    }
+  }
+
+  fetchServices();
+}, []);
+
+
+
+useEffect(() => {
+  async function loadSelectedService() {
+    if (!selectedServiceId) return;
+
+    try {
+      const res = await fetch(`/api/services/${selectedServiceId}`);
+      const data = await res.json();
+
+      if (data.service) {
+        setServiceId(data.service.id);
+        setService(data.service.name);
+      }
+    } catch (error) {
+      console.error("Failed to load selected service:", error);
+    }
+  }
+
+  loadSelectedService();
+}, [selectedServiceId]);
+
+
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -64,6 +102,7 @@ export default function BookAppointmentPage() {
     }
 
     if (!service) {
+      
       setError("Please select a service.");
       return;
     }
@@ -97,14 +136,15 @@ export default function BookAppointmentPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          client: client.trim(),
-          service,
-          nurse,
-          date,
-          time,
-          address: address.trim(),
-          notes: notes.trim(),
-          status: "pending",
+   serviceId: serviceId,
+  serviceName: service,
+  patientName: client.trim(),
+  caregiver: nurse,
+  date,
+  time,
+  address: address.trim(),
+  notes: notes.trim(),
+  status: "pending",
         }),
       });
 
@@ -138,6 +178,7 @@ export default function BookAppointmentPage() {
 
       setClient("");
       setService("");
+      setServiceId("");
       setNurse("");
       setDate("");
       setTime("");
@@ -236,32 +277,14 @@ export default function BookAppointmentPage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="service"
-                    className="mb-2 block text-sm font-semibold"
-                  >
-                    Service
-                    <span className="ml-1 text-red-600">*</span>
-                  </label>
+  <label className="mb-2 block text-sm font-semibold">
+    Service
+  </label>
 
-                  <select
-                    id="service"
-                    name="service"
-                    value={service}
-                    onChange={(event) => setService(event.target.value)}
-                    disabled={submitting}
-                    required
-                    className="w-full rounded-xl border border-[#d7d2c6] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#176043] focus:ring-2 focus:ring-[#176043]/10 disabled:cursor-not-allowed disabled:bg-gray-100"
-                  >
-                    <option value="">Select a service</option>
-
-                    {services.map((serviceName) => (
-                      <option key={serviceName} value={serviceName}>
-                        {serviceName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+  <div className="w-full rounded-xl border border-[#d7d2c6] bg-[#f8f5ed] px-4 py-3 text-sm">
+    {service || "Loading service..."}
+  </div>
+</div>
 
                 <div>
                   <label

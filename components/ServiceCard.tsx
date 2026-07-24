@@ -37,7 +37,7 @@ export default function ServiceCard({
                 ${service.price} · {service.duration}
               </span>
               <Link
-                href="/book-appointment"
+                href={`/book-appointment?serviceId=${service.id}`}
                 className="flex items-center gap-1 text-sm font-medium text-hearth hover:underline"
               >
                 Book <ArrowRight className="h-3.5 w-3.5" aria-hidden />
@@ -48,7 +48,7 @@ export default function ServiceCard({
               <span className="font-display text-lg font-medium text-ink">
                 ${service.price}
               </span>
-              <Link href="/book-appointment" className="btn btn-primary btn-sm">
+              <Link href={`/book-appointment?serviceId=${service.id}`} className="btn btn-primary btn-sm">
                 Book
               </Link>
             </>

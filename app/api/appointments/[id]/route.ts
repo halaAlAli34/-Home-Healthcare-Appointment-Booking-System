@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Appointment from "@/models/Appointment";
+import Service from "@/models/Service";
 
 type RouteContext = {
   params: Promise<{
@@ -87,7 +88,33 @@ export async function PATCH(
       );
     }
 
+if (status === "accepted") {
+  const service = await Service.findById(
+    currentAppointment.serviceId
+  );
+
+  if (!service) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Service not found.",
+      },
+      {
+        status: 404,
+      }
+    );
+  }
+
+  currentAppointment.servicePrice = service.price;
+}
+
     currentAppointment.status = status;
+
+
+    console.log(
+  "Saving appointment price:",
+  currentAppointment.servicePrice
+);
 
     await currentAppointment.save();
 

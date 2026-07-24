@@ -67,7 +67,7 @@ export default function Navbar() {
             </Link>
           )}
           {!loading && user?.role === "admin" && (
-            <Link href="/admin" className={linkClass("/admin")}>
+            <Link href="/admin/dashboard" className={linkClass("/admin/dashboard")}>
               Dashboard
             </Link>
           )}
